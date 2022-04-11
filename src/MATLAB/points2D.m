@@ -8,10 +8,10 @@ for i = 1:11
     fileName = strcat(list(i+2).folder, '\', list(i+2).name);
     mov2D = readmatrix(fileName);
     X((50*(i-1)+1):i*n) = mov2D(:,2);
-    Y((50*(i-1)+1):i*n) = mov2D(:,2);
+    Y((50*(i-1)+1):i*n) = mov2D(:,3);
 end
 
-histogram2(X,Y,500)
+histogram2(X,Y,30)
 figure
 %histogram(X,30)
 %figure
@@ -22,8 +22,9 @@ V = [X Y]
 writematrix(V,'puntos.txt','Delimiter',',') 
 
 solution = readmatrix("..\..\solution.txt");
-mov2D = readmatrix("..\..\data\V2\22-Feb-22\MovesTwoDim_22Feb2022_12.30_log.txt");
-plot(mov2D(:,2),mov2D(:,3), '.', 'LineStyle','none','MarkerSize',15, 'MarkerEdgeColor','b','MarkerFaceColor',[0.5,0.5,0.5]);
+plot(X,Y, '.', 'LineStyle','none','MarkerSize',15, 'MarkerEdgeColor','b','MarkerFaceColor',[0.5,0.5,0.5]);
+%mov2D = readmatrix("..\..\data\V2\22-Feb-22\MovesTwoDim_22Feb2022_12.30_log.txt");
+%plot(mov2D(:,2),mov2D(:,3), '.', 'LineStyle','none','MarkerSize',15, 'MarkerEdgeColor','b','MarkerFaceColor',[0.5,0.5,0.5]);
 xlim([-2.0,2.0]);
 ylim([-2.0,2.0]);
 xticks(-2.05:0.1:2.05);

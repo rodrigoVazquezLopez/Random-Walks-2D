@@ -1,5 +1,6 @@
 
 import math
+import random as r
 
 # clase cell
 class Cell:
@@ -164,7 +165,7 @@ def readTrajectory(filename):
     trajectoryList = []
     with open(filename, 'r') as file:
         for linea in file.readlines():
-            tokens = linea.rsplit(', ')
+            tokens = linea.rsplit(',')
             if len(tokens) > 2:
                 x = float(tokens[1]) * 100
                 y = float(tokens[2]) * 100
@@ -182,22 +183,34 @@ def readTrajectory(filename):
 
 
 if __name__ == '__main__':
-    s = (-0.7, 0.7)
-    f = (1.4, 1.4)
+    r.seed()
+    rNum = r.randint(-200, 120)
+    x_i = rNum - (rNum % 10)
+    rNum = r.randint(-200, 200)
+    y_i = rNum - (rNum % 10)
 
+    rNum = r.randint(170, 200)
+    x_f = rNum - (rNum % 10)
+    rNum = r.randint(-200, 200)
+    y_f = rNum - (rNum % 10)
 
-    p_i = (s[0] * 100, s[1] * 100)
-    p_f = (f[0] * 100, f[1] * 100)
+    p_i = (x_i, y_i)
+    p_f = (x_f, y_f)
+
+    #s = (-1.7, 0.2)
+    #f = (1.4, 1.4)
+
+    #p_i = (s[0] * 100, s[1] * 100)
+    #p_f = (f[0] * 100, f[1] * 100)
 
     #filename = "./data/V2/22-Feb-22/MovesTwoDim_22Feb2022_12.30_log.txt"
-    filename = "./MATLAB/puntos.txt"
+    filename = "./src/MATLAB/puntos.txt"
     solution = "solution.txt"
-
     
     # Leyendo archivo con trayectoria
-    
-    print("Trayectoria leida...")
     trajectoryList = readTrajectory(filename)
+    print("Trayectoria leida...")
+    
 
     for element in trajectoryList:
         print(element)
