@@ -150,44 +150,54 @@ def Aasterisk(start, end, obstacleList):
     
     return path
 
+def normalizeNumber(num):
+    res = num % 10
+    if res != 0:
+        if res > 5:
+            num = num + (10 - res) 
+        else:
+            num = num - res
+    return num
 
-if __name__ == '__main__':
-    s = (-0.4, 0.2)
-    f = (1.3, 0.4)
 
-
-    p_i = (s[0] * 100, s[1] * 100)
-    p_f = (f[0] * 100, f[1] * 100)
-
-    filename = "./data/V2/22-Feb-22/MovesTwoDim_22Feb2022_11.51_log.txt"
-    solution = "solution.txt"
-
+def readTrajectory(filename):
     trajectoryList = []
-
-    # Leyendo archivo con trayectoria
     with open(filename, 'r') as file:
         for linea in file.readlines():
             tokens = linea.rsplit(', ')
-            x = float(tokens[1]) * 100
-            y = float(tokens[2]) * 100
-            res = x % 10
-            if res != 0:
-                if res > 5:
-                    x = x + (10 - res) 
-                else:
-                    x = x - res
-            res = y % 10
-            if res != 0:
-                if res > 5:
-                    y = y + (10 - res)
-                else:
-                    y = y - res
+            if len(tokens) > 2:
+                x = float(tokens[1]) * 100
+                y = float(tokens[2]) * 100
+            else:
+                x = float(tokens[0]) * 100
+                y = float(tokens[1]) * 100
+            x = normalizeNumber(x)
+            y = normalizeNumber(y)
 
             points = [(x, y), (x, y + 10), (x, y - 10), (x + 10, y), (x - 10, y)]
             for element in points:
                 if not element in trajectoryList:
                     trajectoryList.append(element)
+    return trajectoryList
+
+
+if __name__ == '__main__':
+    s = (-0.7, 0.7)
+    f = (1.4, 1.4)
+
+
+    p_i = (s[0] * 100, s[1] * 100)
+    p_f = (f[0] * 100, f[1] * 100)
+
+    #filename = "./data/V2/22-Feb-22/MovesTwoDim_22Feb2022_12.30_log.txt"
+    filename = "./MATLAB/puntos.txt"
+    solution = "solution.txt"
+
+    
+    # Leyendo archivo con trayectoria
+    
     print("Trayectoria leida...")
+    trajectoryList = readTrajectory(filename)
 
     for element in trajectoryList:
         print(element)

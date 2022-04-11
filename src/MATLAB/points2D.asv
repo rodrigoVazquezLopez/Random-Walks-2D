@@ -11,10 +11,8 @@ for i = 1:11
     Y((50*(i-1)+1):i*n) = mov2D(:,2);
 end
 
-histogram2(X,Y,500)
+histogram(X,30)
 figure
-%histogram(X,30)
-%figure
 %histogram(Y,30)
 
 V = [X Y]
