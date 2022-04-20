@@ -1,14 +1,17 @@
 list = dir("..\..\data\V2\22-Feb-22");
+numFiles = (size(list, 1) - 2) / 2;
 
 n = 50;
-X = zeros(n*11, 1);
-Y = zeros(n*11, 1);
+X = zeros(n*numFiles, 1);
+Y = zeros(n*numFiles, 1);
+
+F = zeros(n*numFiles, 3);
 
 for i = 1:11
     fileName = strcat(list(i+2).folder, '\', list(i+2).name);
     mov2D = readmatrix(fileName);
-    X((50*(i-1)+1):i*n) = mov2D(:,2);
-    Y((50*(i-1)+1):i*n) = mov2D(:,3);
+    X((n*(i-1)+1):i*n) = mov2D(:,2);
+    Y((n*(i-1)+1):i*n) = mov2D(:,3);
 end
 
 histogram2(X,Y,30)
@@ -19,7 +22,32 @@ figure
 
 V = [X Y]
 
-writematrix(V,'puntos.txt','Delimiter',',') 
+writematrix(V,'puntos.txt','Delimiter',',')
+
+idx = 1
+for i = 1:550
+    cnt = 0;
+    if V(i,:) ~= [inf inf]
+        tmp = V(i,:);
+        for j = 1:550    
+            if V(j,:) == tmp
+                cnt = cnt + 1;
+                V(j,:) = [inf inf];
+            end
+        end
+        F(idx, 1:2) = tmp;
+        F(idx, 3) = cnt;
+        idx = idx + 1;
+    end
+end
+
+R = zeros(idx-1, 3)
+R = F(1:idx-1, :)
+
+ref = max(F(:,3))
+
+
+
 
 solution = readmatrix("..\..\solution.txt");
 plot(X,Y, '.', 'LineStyle','none','MarkerSize',15, 'MarkerEdgeColor','b','MarkerFaceColor',[0.5,0.5,0.5]);
