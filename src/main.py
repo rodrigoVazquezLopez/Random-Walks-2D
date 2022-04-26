@@ -76,6 +76,7 @@ def generateRandom2D(x, y):
 
 #--------------- Producer ------------------
 def producer(queue):
+    print("Producer: Iniciando")
     x = 0.0
     y = 0.0
     z = 0.4
@@ -95,8 +96,8 @@ def producer(queue):
     print("Producer: Trayectoria generada")
     producerIsReady = True
 
-    while consumerIsReady == False:
-        time.sleep(0.1)
+    #while consumerIsReady == False:
+        #time.sleep(0.01)
 
     with SyncCrazyflie(uriDron1, cf=Crazyflie(rw_cache='./cache1')) as scf1:
         lg_stab = LogConfig(name='Stabilizer', period_in_ms=100)
@@ -121,7 +122,9 @@ def producer(queue):
 
 #--------------- Consumer ------------------
 def consumer(queue):
+    print('Consumer: Iniciando')
     global producerIsReady
+    global consumerIsReady
     r.seed()
     rNum = r.randint(-200, -120)
     x_i = rNum - (rNum % 10)
@@ -148,7 +151,7 @@ def consumer(queue):
     # input("esperando")
 
     while producerIsReady == False:
-        time.sleep(0.1)
+        time.sleep(0.01)
 
     while not(queue.empty()):
         data = queue.get()
@@ -163,6 +166,8 @@ def consumer(queue):
                 trajectoryList.append(data)
 
     pathResult = Astar.Aasterisk(p_i, p_f, trajectoryList)
+
+    consumerIsReady = True
 
     with SyncCrazyflie(uriDron2, cf=Crazyflie(rw_cache='./cache2')) as scf2:
         lg_stab = LogConfig(name='Stabilizer', period_in_ms=100)
@@ -191,7 +196,7 @@ def consumer(queue):
 
 #--------------- Main ------------------
 if __name__ == '__main__':
-
+    cflib.crtp.init_drivers(enable_debug_driver=False)
     pipeline = queue.Queue(maxsize=0)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
