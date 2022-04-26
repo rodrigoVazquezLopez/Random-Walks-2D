@@ -1,6 +1,5 @@
 
 import math
-import random as r
 
 # clase cell
 class Cell:
@@ -74,8 +73,10 @@ def generateAdyacentCells(cell, listTrajectory):
         type = 100
         basePoint = cell.coord
         adyPoint = calculateAdyacents(basePoint, i)
-        if adyPoint in listTrajectory:
-            type = 0
+        for data in listTrajectory:
+            if adyPoint in data:
+                type = 100 - (data[1] * 100)
+                break
         adyCell = Cell(adyPoint, "null", type)
         adyacents.append(adyCell)
     return adyacents
@@ -117,7 +118,7 @@ def Aasterisk(start, end, obstacleList):
 
                 elif searchInCellList(closedList, ady.coord) == True:
                     print("Está en lista cerrada")
-                elif ady.type < 100:
+                elif ady.type < 70:
                     print("es infranqueble")
                 elif searchInCellList(openList, ady.coord) == True:
                     index = getIndex(openList, ady.coord)
@@ -151,74 +152,5 @@ def Aasterisk(start, end, obstacleList):
     
     return path
 
-def normalizeNumber(num):
-    res = num % 10
-    if res != 0:
-        if res > 5:
-            num = num + (10 - res) 
-        else:
-            num = num - res
-    return num
 
 
-def readTrajectory(filename):
-    trajectoryList = []
-    with open(filename, 'r') as file:
-        for linea in file.readlines():
-            tokens = linea.rsplit(',')
-            if len(tokens) > 2:
-                x = float(tokens[1]) * 100
-                y = float(tokens[2]) * 100
-            else:
-                x = float(tokens[0]) * 100
-                y = float(tokens[1]) * 100
-            x = normalizeNumber(x)
-            y = normalizeNumber(y)
-
-            points = [(x, y), (x, y + 10), (x, y - 10), (x + 10, y), (x - 10, y)]
-            for element in points:
-                if not element in trajectoryList:
-                    trajectoryList.append(element)
-    return trajectoryList
-
-
-if __name__ == '__main__':
-    r.seed()
-    rNum = r.randint(-200, 120)
-    x_i = rNum - (rNum % 10)
-    rNum = r.randint(-200, 200)
-    y_i = rNum - (rNum % 10)
-
-    rNum = r.randint(170, 200)
-    x_f = rNum - (rNum % 10)
-    rNum = r.randint(-200, 200)
-    y_f = rNum - (rNum % 10)
-
-    p_i = (x_i, y_i)
-    p_f = (x_f, y_f)
-
-    #s = (-1.7, 0.2)
-    #f = (1.4, 1.4)
-
-    #p_i = (s[0] * 100, s[1] * 100)
-    #p_f = (f[0] * 100, f[1] * 100)
-
-    #filename = "./data/V2/22-Feb-22/MovesTwoDim_22Feb2022_12.30_log.txt"
-    filename = "./src/MATLAB/puntos.txt"
-    solution = "solution.txt"
-    
-    # Leyendo archivo con trayectoria
-    trajectoryList = readTrajectory(filename)
-    print("Trayectoria leida...")
-    
-
-    for element in trajectoryList:
-        print(element)
-    input("esperando")
-
-    pathResult = Aasterisk(p_i, p_f, trajectoryList)
-
-    with open(solution, 'w') as file:
-        for element in pathResult:
-            text = "{}, {}\n".format(element[0], element[1])
-            file.write(text)
