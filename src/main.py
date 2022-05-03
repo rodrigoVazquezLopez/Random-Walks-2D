@@ -1,10 +1,10 @@
+import datetime
 import time
 import Astar
+import randomWalks2D as rw
+import readTrajectory as rt
 import random as r
-
 import threading
-import concurrent.futures
-import queue
 
 import cflib.crtp
 from cflib.crazyflie import Crazyflie
@@ -13,93 +13,52 @@ from cflib.positioning.position_hl_commander import PositionHlCommander
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncLogger import SyncLogger
 
-uriDron1  = 'radio://0/80/2M/E7E7E7E7E7'
-uriDron2  = 'radio://0/80/2M/E7E7E7E7E8'
+dron1Positions = []
+dron2Positions = []
 
-producerIsReady = False
-consumerIsReady = False
+def writeFile(filename, data):
+    with open(filename, 'w') as file:
+        for element in data:
+            text = "{}, {},\n".format(element[0], element[1])
+            file.write(text)
 
-def normalizeNumber(num):
-    res = num % 10
-    if res != 0:
-        if res > 5:
-            num = num + (10 - res) 
-        else:
-            num = num - res
-    return num
+def writeDronLogfile(filename, data):
+    with open(filename, 'w') as file:
+        for element in data:
+            text = "{}, {}, {}, {}, {}, {}\n".format(element[0], element[1], element[2], element[3], element[4], element[5])
+            file.write(text)
 
+#--------------- Callbacks ------------------
+def producerDron_callback(timestamp, data, logconf):
+    global dron1Positions
+    position = (timestamp, data["stateEstimate.x"], data["stateEstimate.y"], data["stateEstimate.z"], data["acc.x"], data["acc.y"])
+    dron1Positions.append(position)
 
-def readTrajectory(filename):
-    trajectoryList = []
-    with open(filename, 'r') as file:
-        for linea in file.readlines():
-            tokens = linea.rsplit(',')
-            x = float(tokens[0]) * 100
-            y = float(tokens[1]) * 100
-            p = float(tokens[2])
-            x = normalizeNumber(x)
-            y = normalizeNumber(y)
-
-            if p >= 0.5:
-                points = [(x, y), (x, y + 10), (x, y - 10), (x + 10, y), (x - 10, y)]
-                for point in points:
-                    isOnlist = False
-                    for data in trajectoryList:
-                        if point in data:
-                            isOnlist = True
-                            break
-                    if isOnlist == False:
-                        element = [point, p]
-                        trajectoryList.append(element)
-            if p >= 0.25 and p < 0.5:
-                element = [(x, y), p]
-                trajectoryList.append(element)
-            
-    return trajectoryList
-
-def generateRandom2D(x, y):
-    gap = 10
-    r = r.randint(0, 1)
-    r.seed()
-    if r == 0:
-        x += gap
-    else:
-        x -= gap
-    r = r.randint(0, 1)
-    r.seed()
-    if r == 0: 
-        y += gap
-    else:
-        y -= gap
-    
-    return [x, y]
+def consumerDron_callback(timestamp, data, logconf):
+    global dron2Positions
+    position = (timestamp, data["stateEstimate.x"], data["stateEstimate.y"], data["stateEstimate.z"], data["acc.x"], data["acc.y"])
+    dron2Positions.append(position)
 
 #--------------- Producer ------------------
-def producer(queue):
+def producer(queue, eventoProducer, eventoConsumer, dat, uridron):
     print("Producer: Iniciando")
-    x = 0.0
-    y = 0.0
-    z = 0.4
-    trajectory = []
-
-    global producerIsReady
-    global consumerIsReady
-
-    for i in range(50):
-        res = generateRandom2D(x, y)
-        x = res[0]
-        y = res[1]
-        point = (x, y, z)
-        trajectory.append(point)
-        queue.put(point)
-    
+    randomTrajectory = rw.generate2DRandomWalk(50)
     print("Producer: Trayectoria generada")
-    producerIsReady = True
 
-    #while consumerIsReady == False:
-        #time.sleep(0.01)
+    for element in randomTrajectory:
+        data = [element, 1.0]
+        print("Producer: {}".format(data))
+        queue.append(data)
+    print("Producer: Notificando")
+    eventoProducer.set()
 
-    with SyncCrazyflie(uriDron1, cf=Crazyflie(rw_cache='./cache1')) as scf1:
+    directoryPath = "./data/Experiment/"
+    randomWalkFilename = directoryPath + dat.strftime("randomWalk_%d%b%Y_%H.%M") + ".txt"
+    writeFile(randomWalkFilename, randomTrajectory)
+
+    eventoConsumer.wait()
+
+    with SyncCrazyflie(uridron, cf=Crazyflie(rw_cache='./cache1')) as scf1:
         lg_stab = LogConfig(name='Stabilizer', period_in_ms=100)
         lg_stab.add_variable('stateEstimate.x', 'float')
         lg_stab.add_variable('stateEstimate.y', 'float')
@@ -107,24 +66,29 @@ def producer(queue):
         lg_stab.add_variable('acc.x', 'float')
         lg_stab.add_variable('acc.y', 'float')
         scf1.cf.log.add_config(lg_stab)
-        #lg_stab.data_received_cb.add_callback(log_stab_callback)
+        lg_stab.data_received_cb.add_callback(producerDron_callback)
         lg_stab.start()
 
+        z =  0.4
         with PositionHlCommander(scf1, default_height=0.4, controller=PositionHlCommander.CONTROLLER_PID) as pc1:
-            while len(trajectory) > 0:
-                point = trajectory.pop()
-                pc1.go_to(point[0]/100, point[1]/100, point[2]/100)
-                time.sleep(1)
+            while len(randomTrajectory) > 0:
+                point = randomTrajectory.pop()
+                pc1.go_to(point[0]/100, point[1]/100, z)
+                time.sleep(0.1)
+
+        lg_stab.stop()
+
+    dronpostionsFilename = directoryPath + dat.strftime("Dron1_Vuelo_%d%b%Y_%H.%M_log") + ".txt"
+    writeDronLogfile(dronpostionsFilename, dron1Positions)
 
     print("Producer: Finalizado")
 
 
 
 #--------------- Consumer ------------------
-def consumer(queue):
+def consumer(queue, eventoProducer, eventoConsumer, dat, uridron):
     print('Consumer: Iniciando')
-    global producerIsReady
-    global consumerIsReady
+
     r.seed()
     rNum = r.randint(-200, -120)
     x_i = rNum - (rNum % 10)
@@ -140,36 +104,35 @@ def consumer(queue):
     p_f = (x_f, y_f)
 
     inputFilename = "./src/MATLAB/puntos.txt"
-    outputFilename = "solution.txt"
+    obstacles = rt.readTrajectory(inputFilename)
+    print("Consumer: Esperando")
+    eventoProducer.wait()
+    print("Consumer: Continuando")
 
-    # Leyendo archivo con trayectoria
-    trajectoryList = readTrajectory(inputFilename)
-    print("Consumer: Trayectoria leida...")
-
-    # for element in trajectoryList:
-        # print(element)
-    # input("esperando")
-
-    while producerIsReady == False:
-        time.sleep(0.01)
-
-    while not(queue.empty()):
-        data = queue.get()
-        x = data[0]
-        y = data[1]
-        for element in trajectoryList:
-            if (x, y) in element:
+    while len(queue) > 0:
+        data = queue.pop()
+        encontrado = False
+        for element in obstacles:
+            if data[0] in element:
+                print("Consumer: {} en obstacles".format(data[0]))
+                encontrado = True
                 element[1] = 1.0
-            else:
-                point = (x, y)
-                data = [point, 1.0]
-                trajectoryList.append(data)
+                break
+        if encontrado == False:
+            obstacles.append(data)
 
-    pathResult = Astar.Aasterisk(p_i, p_f, trajectoryList)
+    directoryPath = "./data/Experiment/"
+    obstaclesFilename = directoryPath + dat.strftime("obstacles_%d%b%Y_%H.%M") + ".txt" 
+    writeFile(obstaclesFilename, obstacles)
 
-    consumerIsReady = True
+    pathResult = Astar.Aasterisk(p_i, p_f, obstacles)
 
-    with SyncCrazyflie(uriDron2, cf=Crazyflie(rw_cache='./cache2')) as scf2:
+    pathResultFilename = directoryPath + dat.strftime("result_%d%b%Y_%H.%M") + ".txt"
+    writeFile(pathResultFilename, pathResult)
+
+    eventoConsumer.set()
+
+    with SyncCrazyflie(uridron, cf=Crazyflie(rw_cache='./cache2')) as scf2:
         lg_stab = LogConfig(name='Stabilizer', period_in_ms=100)
         lg_stab.add_variable('stateEstimate.x', 'float')
         lg_stab.add_variable('stateEstimate.y', 'float')
@@ -177,30 +140,38 @@ def consumer(queue):
         lg_stab.add_variable('acc.x', 'float')
         lg_stab.add_variable('acc.y', 'float')
         scf2.cf.log.add_config(lg_stab)
-        #lg_stab.data_received_cb.add_callback(log_stab_callback)
+        lg_stab.data_received_cb.add_callback(consumerDron_callback)
         lg_stab.start()
 
+        z = 0.4
         with PositionHlCommander(scf2, default_height=0.4, controller=PositionHlCommander.CONTROLLER_PID) as pc2:
             for element in pathResult:
-                pc2.go_to(element[0]/100, element[1]/100, 0.4)
-                time.sleep(1)
+                pc2.go_to(element[0]/100, element[1]/100, z)
+                time.sleep(0.1)
 
+        lg_stab.stop()
     
-    
+    dronpostionsFilename = directoryPath + dat.strftime("Dron2_Vuelo_%d%b%Y_%H.%M_log") + ".txt"
+    writeDronLogfile(dronpostionsFilename, dron2Positions)
 
-    with open(outputFilename, 'w') as file:
-        for element in pathResult:
-            text = "{}, {}\n".format(element[0], element[1])
-            file.write(text)
+    print("Consumer: Finalizando")
 
 
 #--------------- Main ------------------
 if __name__ == '__main__':
     cflib.crtp.init_drivers(enable_debug_driver=False)
-    pipeline = queue.Queue(maxsize=0)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        executor.submit(producer, pipeline) # Thread 1 producer
-        executor.submit(consumer, pipeline) # Thread 2 consumer
+    uriDron1  = 'radio://0/80/2M/E7E7E7E7E7'
+    uriDron2  = 'radio://0/80/2M/E7E7E7E7E8'
+    pipeline = []
+    dat = datetime.datetime.now()
+    eventoProducer = threading.Event()
+    eventoConsumer = threading.Event()
+
+    producerThread = threading.Thread(target=producer, args=(pipeline, eventoProducer, eventoConsumer, dat, uriDron1))
+    consumerThread = threading.Thread(target=consumer, args=(pipeline, eventoProducer, eventoConsumer, dat, uriDron2))
+    
+    producerThread.start()
+    consumerThread.start()
 
     print('Main: Finalizado')

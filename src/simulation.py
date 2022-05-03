@@ -1,38 +1,35 @@
+import datetime
 import random
 import randomWalks2D as rw
 import readTrajectory as rt
 import Astar
-
 import threading
-import concurrent.futures
-import queue
 
-condition = threading.Condition()
+def writeFile(filename, data):
+    with open(filename, 'w') as file:
+        for element in data:
+            text = "{}, {},\n".format(element[0], element[1])
+            file.write(text)
 
-def producer(queue):
-    condition.acquire()
+def producer(queue, evento, dat):
     print("Producer: Iniciando")
-    randomTrajectory = rw.generate2DRandomWalk()
+    randomTrajectory = rw.generate2DRandomWalk(50)
 
     for element in randomTrajectory:
         data = [element, 1.0]
-        print(data)
-        queue.put(data)
+        print("Producer: {}".format(data))
+        queue.append(data)
     print("Producer: Notificando")
-    condition.notify()
-    condition.release()
+    evento.set()
+    
+    directoryPath = "./data/Simulation/"
+    randomWalkFilename = directoryPath + dat.strftime("randomWalk_%d%b%Y_%H.%M") + ".txt"
+    writeFile(randomWalkFilename, randomTrajectory)
 
-    randomWalkFilename = "../data/Simulation/randomWalk.txt"
-
-    with open(randomWalkFilename, 'w') as file:
-        for element in randomTrajectory:
-            text = "{}, {}\n".format(element[0], element[1])
-            file.write(text)
-
-    condition.release()
     print("Producer: Finalizando")
+    
 
-def consumer(queue):
+def consumer(queue, evento, dat):
     
     print("Consumer: Iniciando")
     random.seed()
@@ -51,51 +48,46 @@ def consumer(queue):
 
     inputFilename = "./src/MATLAB/puntos.txt"
     obstacles = rt.readTrajectory(inputFilename)
-    condition.acquire()
     print("Consumer: Esperando")
-    condition.wait()
+    evento.wait()
     print("Consumer: Continuando")
-    condition.release()
 
-    while not(queue.empty()):
-        data = queue.get()
-        x = data[0]
-        y = data[1]
+
+    while len(queue) > 0:
+        data = queue.pop()
+        encontrado = False
         for element in obstacles:
-            if (x, y) in element:
+            if data[0] in element:
+                print("Consumer: {} en obstacles".format(data[0]))
+                encontrado = True
                 element[1] = 1.0
-            else:
-                point = (x, y)
-                data = [point, 1.0]
-                obstacles.append(data)
-
+                break
+        if encontrado == False:
+            obstacles.append(data)
+        
     pathResult = Astar.Aasterisk(p_i, p_f, obstacles)
 
-    obstaclesFilename = "../data/Simulation/obstacles.txt"
+    directoryPath = "./data/Simulation/"
+    obstaclesFilename = directoryPath + dat.strftime("obstacles_%d%b%Y_%H.%M") + ".txt" 
+    writeFile(obstaclesFilename, obstacles)
 
-    with open(obstaclesFilename, 'w') as file:
-        for element in obstacles:
-            text = "{}, {}, {}\n".format(element[0], element[1], element[2])
-            file.write(text)
-
-    pathResultFilename = "../data/Simulation/result.txt"
-
-    with open(pathResultFilename, 'w') as file:
-        for element in pathResult:
-            text = "{}, {}\n".format(element[0], element[1])
-            file.write(text)
-
+    pathResultFilename = directoryPath + dat.strftime("result_%d%b%Y_%H.%M") + ".txt"
+    writeFile(pathResultFilename, pathResult)
     
     print("Consumer: Finalizando")
 
 
 if __name__ == '__main__':
     print("Main: Iniciando")
-    pipeline = queue.Queue(maxsize=0)
+    pipeline = []
+    dat = datetime.datetime.now()
+    evento = threading.Event()
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        executor.submit(producer, pipeline) # Thread 1 producer
-        executor.submit(consumer, pipeline) # Thread 2 consumer
+    producerThread = threading.Thread(target=producer, args=(pipeline, evento, dat))
+    consumerThread = threading.Thread(target=consumer, args=(pipeline, evento, dat))
+    
+    producerThread.start()
+    consumerThread.start()
 
     print('Main: Finalizado')
 
