@@ -1,0 +1,21 @@
+obsFile = fopen("..\..\data\Experiment\obstacles_03May2022_12.40.txt","r");
+obs = fscanf(obsFile, "(%f, %f), %f,\n", [3,inf]);
+obs = obs';
+obs(:,1) = obs(:,1)/100;
+obs(:,2) = obs(:,2)/100;
+
+figure;
+hold on;
+s = scatter(obs(:,1),obs(:,2),200,'filled');
+xlim([-2.0,2.0]);
+ylim([-2.0,2.0]);
+grid on;
+xticks(-2.05:0.1:2.05);
+yticks(-2.05:0.1:2.05);
+s.AlphaData = obs(:,3);
+s.MarkerFaceAlpha = 'flat';
+
+rndwlk = readmatrix("..\..\data\Experiment\randomWalk_03May2022_12.40.txt");
+rndwlk = rndwlk/100;
+
+

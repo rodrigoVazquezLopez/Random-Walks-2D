@@ -35,12 +35,12 @@ def consumer(queue, evento, dat):
     random.seed()
     rNum = random.randint(-200, -120)
     x_i = rNum - (rNum % 10)
-    rNum = random.randint(-200, 200)
+    rNum = random.randint(-90, 90)
     y_i = rNum - (rNum % 10)
 
     rNum = random.randint(170, 200)
     x_f = rNum - (rNum % 10)
-    rNum = random.randint(-40, 90)
+    rNum = random.randint(-40, 80)
     y_f = rNum - (rNum % 10)
 
     p_i = (x_i, y_i)
